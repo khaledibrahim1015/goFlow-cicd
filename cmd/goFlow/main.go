@@ -3,5 +3,5 @@ package main
 import "fmt"
 
 func main() {
-	fmt.Println("hello from our goFlow-cicd")
+	fmt.Println("project intail structure ")
 }
