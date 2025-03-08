@@ -5,6 +5,9 @@ import (
 	"net"
 )
 
+// Custom Datatypes
+type Generalesponse map[string]interface{}
+
 type Server struct {
 	Addr   string
 	Router *Router
