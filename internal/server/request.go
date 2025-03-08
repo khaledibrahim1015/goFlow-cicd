@@ -11,14 +11,16 @@ import (
 const (
 	POST_METHOD      = "POST"
 	PUT_METHOD       = "PUT"
+	GET_METHOD       = "GET"
+	DELETE_METHOD    = "DELETE"
 	APPLICATION_JSON = "application/json"
 	TEXT_PLAIN       = "text/plain"
 )
 
 // Custom Data TYpes for QueryParameters and Headers
-type QueryParms map[string]string
-type Headers map[string]string
-type PathParams map[string]string
+type QueryParms map[string]string // e.g., {"productid": "1"}
+type Headers map[string]string    // e.g., {"Content-Type": "application/json"}
+type PathParams map[string]string // e.g., {"id": "123"}
 
 type HttpRequest struct {
 	Method      string
@@ -34,7 +36,7 @@ func ParseRequest(conn net.Conn) (*HttpRequest, error) {
 
 	// Read request
 	reader := bufio.NewReader(conn)
-
+	// Parse request line (e.g., "GET /users/123?key=value HTTP/1.1")
 	// Read RequestLine
 	requestLine, err := reader.ReadString('\n')
 	if err != nil {
@@ -53,9 +55,10 @@ func ParseRequest(conn net.Conn) (*HttpRequest, error) {
 	var contentType string
 	for {
 		line, err := reader.ReadString('\n')
-		if err != nil || line == "\r\n" { // that mean end of headers part
+		if err != nil || line == "\r\n" || line == "\n" { // that mean end of headers part
 			break // End of headers
 		}
+
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -109,7 +112,7 @@ func ParseRequest(conn net.Conn) (*HttpRequest, error) {
 		Path:        path,
 		Headers:     headers,
 		QueryParms:  queryParms,
-		PathParms:   make(PathParams), // Initialize path parameters
+		PathParms:   make(PathParams), // Initialize path parameters , Will be populated by router
 		Body:        body,
 		ContentType: contentType,
 	}, nil
@@ -133,7 +136,6 @@ func (req *HttpRequest) ParseBody() (interface{}, error) {
 		return nil, fmt.Errorf("unsupported Content-Type: %s", req.ContentType)
 
 	}
-
 }
 
 func (req *HttpRequest) GetBody() ([]byte, error) {
@@ -154,4 +156,10 @@ func (req *HttpRequest) GetQueryParam(key string) (string, error) {
 		return cl, nil
 	}
 	return "", fmt.Errorf("key NOt exist :%v", key)
+}
+func (req *HttpRequest) GetPathParam(key string) (string, error) {
+	if cl, ok := req.PathParms[key]; ok {
+		return cl, nil
+	}
+	return "", fmt.Errorf("key not exist :%v", key)
 }
