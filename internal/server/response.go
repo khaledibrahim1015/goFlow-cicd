@@ -26,7 +26,7 @@ func (res *HttpResponse) Write(conn net.Conn) error {
 	response := fmt.Sprintf("HTTP/1.1 %d %s\r\n", res.StatusCode, statusText)
 
 	// Set Content-Length if body exists and not already set
-	if res.Body != nil && len(res.Body) > 0 {
+	if res.Body != nil && len(res.Body) <= 0 {
 		if _, ok := res.Headers["Content-Length"]; !ok {
 			res.Headers["Content-Length"] = fmt.Sprintf("%d", len(res.Body))
 		}
