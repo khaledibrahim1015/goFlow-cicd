@@ -8,15 +8,6 @@ import (
 	"strings"
 )
 
-const (
-	POST_METHOD      = "POST"
-	PUT_METHOD       = "PUT"
-	GET_METHOD       = "GET"
-	DELETE_METHOD    = "DELETE"
-	APPLICATION_JSON = "application/json"
-	TEXT_PLAIN       = "text/plain"
-)
-
 // Custom Data TYpes for QueryParameters and Headers
 type QueryParms map[string]string // e.g., {"productid": "1"}
 type Headers map[string]string    // e.g., {"Content-Type": "application/json"}
