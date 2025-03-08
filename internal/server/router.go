@@ -57,16 +57,41 @@ func (r *Router) DELETE(path string, handler HandlerFunc) {
 func (r *Router) FindHandler(req *HttpRequest) (HandlerFunc, bool) {
 	reqPathParts := strings.Split(strings.Trim(req.Path, "/"), "/")
 
+	// First pass: Look for exact matches
 	for _, route := range r.routes {
 		if route.Method != req.Method {
 			continue
 		}
-
 		routePathParts := strings.Split(strings.Trim(route.Path, "/"), "/")
 		if len(routePathParts) != len(reqPathParts) {
 			continue
 		}
+		isExactMatch := true
+		for i, routePart := range routePathParts {
+			if strings.HasPrefix(routePart, ":") {
+				isExactMatch = false // Contains a parameter, not an exact match
+				break
+			}
+			if routePart != reqPathParts[i] {
+				isExactMatch = false
+				break
+			}
+		}
+		if isExactMatch {
+			req.PathParms = make(PathParams) // No params for exact match
+			return route.Handler, true
+		}
+	}
 
+	// Second pass: Look for parameterized matches
+	for _, route := range r.routes {
+		if route.Method != req.Method {
+			continue
+		}
+		routePathParts := strings.Split(strings.Trim(route.Path, "/"), "/")
+		if len(routePathParts) != len(reqPathParts) {
+			continue
+		}
 		matches := true
 		req.PathParms = make(PathParams)
 		for i, routePart := range routePathParts {
@@ -79,10 +104,10 @@ func (r *Router) FindHandler(req *HttpRequest) (HandlerFunc, bool) {
 				break
 			}
 		}
-
 		if matches {
 			return route.Handler, true
 		}
 	}
+
 	return nil, false
 }
