@@ -1,0 +1,70 @@
+[ {
+    "repositories": [
+      {
+        "url": "https://github.com/user/java-app.git",
+        "branch": "main",
+        "secret": "mysecret"
+      }
+    ],
+    "build": {
+      "type": "java",
+      "path": "./",
+      "version": "11"
+    },
+    "test": {
+      "type": "java",
+      "path": "./",
+      "version": "11"
+    },
+    "deploy": {
+      "method": "docker",
+      "docker": {
+        "image": "myapp",
+        "registry": "docker.io",
+        "username": "myuser",
+        "password": "mypassword",
+        "compose_file": "docker-compose.yml"
+      },
+      "rollback_script": "docker stop myapp && docker rm myapp",
+      "post_deploy_cmds": [
+        "docker-compose -f docker-compose.yml logs"
+      ]
+    }
+  }
+
+,
+
+  {
+    "repositories": [
+      {
+        "url": "https://github.com/team/dotnet-app.git",
+        "branch": "main",
+        "secret": "supersecret"
+      }
+    ],
+    "build": {
+      "type": "dotnet",  // here specify app type 
+      "path": "./src",  
+      "version": "6.0"   // specify .net sdk version 
+    },
+    "test": {
+      "type": "dotnet",
+      "path": "./tests",
+      "version": "6.0"
+    },
+    "deploy": {
+      "method": "ssh",
+      "ssh": {
+        "remote_user": "appuser",
+        "remote_host": "webserver.example.com",
+        "remote_path": "/var/www/dotnet-app",
+        "key_path": "/home/user/.ssh/id_rsa"
+      },
+      "rollback_script": "rm -rf /var/www/dotnet-app/* && systemctl restart dotnet-app",
+      "post_deploy_cmds": [
+        "systemctl restart dotnet-app"
+      ]
+    }
+  }
+
+]
