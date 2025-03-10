@@ -29,3 +29,7 @@ func Run(cmd *exec.Cmd) error {
 	}
 	return nil
 }
+func RunWithOutput(cmd *exec.Cmd) (string, error) {
+	output, err := cmd.CombinedOutput()
+	return string(output), err
+}
