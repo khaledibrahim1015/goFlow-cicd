@@ -16,6 +16,7 @@ const (
 	StatusBadRequest          = 400
 	StatusNotFound            = 404
 	StatusInternalServerError = 500
+	StatusMethodNotAllowed    = 405
 )
 
 // Status text as constants
@@ -25,6 +26,7 @@ const (
 	StatusTextBadRequest          = "Bad Request"
 	StatusTextNotFound            = "Not Found"
 	StatusTextInternalServerError = "Internal Server Error"
+	StatusTextMethodNotAllowed    = "Method Not Allowed"
 )
 
 // StatusCodeText maps status codes to their text (initialized with constants)
@@ -34,6 +36,7 @@ var StatusCodeText = map[int]string{
 	StatusBadRequest:          StatusTextBadRequest,
 	StatusNotFound:            StatusTextNotFound,
 	StatusInternalServerError: StatusTextInternalServerError,
+	StatusMethodNotAllowed:    StatusTextMethodNotAllowed,
 }
 
 // ResponseMessage provides common response messages
@@ -44,4 +47,5 @@ var ResponseMessage = map[string]string{
 	"invalid_json":   "invalid JSON",
 	"invalid_fields": "missing or invalid fields",
 	"invalid_body":   "invalid request body",
+	"invalid_method": "invalid method request",
 }

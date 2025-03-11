@@ -114,7 +114,7 @@ func ensureDotNet(version string, pm PackageManager) error {
 	}
 
 	logrus.Info(".NET SDK installed and environment variables set")
-	return verifyTool(tool)
+	return VerifyTool(tool)
 
 }
 
@@ -187,5 +187,5 @@ func ensureJava(version string, pm PackageManager) error {
 		return mavenErr
 	}
 
-	return verifyTool("mvn")
+	return VerifyTool("mvn")
 }

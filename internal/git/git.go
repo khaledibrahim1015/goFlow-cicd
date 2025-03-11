@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	github         = "github"
-	gitlab         = "gitlab"
+	Github         = "github"
+	Gitlab         = "gitlab"
 	X_Github_Event = "X-Github-Event"
 	X_Gitlab_Event = "X-Gitlab-Event"
 )
@@ -23,10 +23,10 @@ const (
 // just identify provider
 func DetermineGitProvider(req *server.HttpRequest) string {
 	if _, err := req.GetHeader(X_Github_Event); err == nil {
-		return github
+		return Github
 	}
 	if _, err := req.GetHeader(X_Gitlab_Event); err == nil {
-		return gitlab
+		return Gitlab
 	}
 	return "unknown"
 }
