@@ -65,7 +65,6 @@ func ParseRequest(conn net.Conn) (*HttpRequest, error) {
 		}
 
 	}
-
 	// Parse QueryParameters it exist
 	// ex: /product?productid=1&productname=iphone
 	// it contain path and querystrings keypairs separte with ? and keypairs it self separtae with &

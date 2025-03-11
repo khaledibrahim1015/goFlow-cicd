@@ -34,7 +34,7 @@ func Githubhandler(ctx *server.HttpContext, cfg *config.PipelineConfig) {
 	var payload = ctx.Request.Body
 	var repo *config.RepositoryConfig
 	for _, r := range cfg.Repositories {
-		if verifySignature(repo.Secret, signature, payload) {
+		if verifySignature(r.Secret, signature, payload) {
 			repo = &r
 			break
 		}

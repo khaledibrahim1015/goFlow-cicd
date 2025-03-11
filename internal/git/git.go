@@ -22,10 +22,10 @@ const (
 // that mean the request from githubprovider here we do not need value of X_Github_Event value (push)
 // just identify provider
 func DetermineGitProvider(req *server.HttpRequest) string {
-	if _, err := req.GetHeader(X_Github_Event); err == nil {
+	if _, ok := req.Headers["X-GitHub-Event"]; ok {
 		return Github
 	}
-	if _, err := req.GetHeader(X_Gitlab_Event); err == nil {
+	if _, ok := req.Headers[X_Gitlab_Event]; ok {
 		return Gitlab
 	}
 	return "unknown"
@@ -46,9 +46,11 @@ func Clone(url, branch string) (string, error) {
 		return "", err
 	}
 	// Generate unique directory name
+
 	repoName := sanitizedRepoName(url)
-	dir, err := os.MkdirTemp("", fmt.Sprintf("goflow-%s-", repoName))
-	if err != nil {
+	dir := filepath.Join(os.TempDir(), fmt.Sprintf("goflow-%s", repoName))
+
+	if err := os.Mkdir(dir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create temp directory: %v", err)
 	}
 
@@ -93,5 +95,5 @@ func sanitizedRepoName(url string) string {
 	if len(parts) < 2 {
 		return "default-repo"
 	}
-	return fmt.Sprint("%s-%s", parts[len(parts)-2], parts[len(parts)-1])
+	return fmt.Sprintf("%s-%s", parts[len(parts)-2], parts[len(parts)-1])
 }
