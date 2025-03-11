@@ -87,7 +87,7 @@ func appendToPath(newPath string) error {
 	logrus.Debugf("Appended %s to PATH", newPath)
 	return exportEnvVar("PATH", path)
 }
-func verifyTool(tool string) error {
+func VerifyTool(tool string) error {
 	if _, err := getToolVersion(tool, "--version"); err != nil {
 		return fmt.Errorf("%s not usable after installation: %v", tool, err)
 	}

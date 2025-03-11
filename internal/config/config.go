@@ -20,16 +20,18 @@ type RepositoryConfig struct {
 
 // BuildConfig defines the build step
 type BuildConfig struct {
-	Type    string `json:"type" yaml:"type"` // "dotnet", "java" .. etc
-	Path    string `json:"path" yaml:"path"`
-	Version string `json:"version" yaml:"version"` // e.g., "6.0", "11"   .Net sdk version , Java Jdk
+	Type string `json:"type" yaml:"type"` // "dotnet", "java" .. etc
+	// Path    string `json:"path" yaml:"path"`
+	OutputPath string `json:"output_path" yaml:"output_path"` // New field for artifact destination
+	Version    string `json:"version" yaml:"version"`         // e.g., "6.0", "11"   .Net sdk version , Java Jdk
 }
 
 // TestConfig defines the test step
 type TestConfig struct {
-	Type    string `json:"type" yaml:"type"`
-	Path    string `json:"path" yaml:"path"`
-	Version string `json:"version" yaml:"version"`
+	Type string `json:"type" yaml:"type"`
+	// Path    string `json:"path" yaml:"path"`
+	OutputPath string `json:"output_path" yaml:"output_path"` // New field for artifact destination
+	Version    string `json:"version" yaml:"version"`
 }
 type DeployConfig struct {
 	Method string `json:"method" yaml:"method"` // "ssh", "docker", "k8s" , etc
@@ -130,9 +132,14 @@ func validate(cfg *PipelineConfig) error {
 			return fmt.Errorf("repository %d: url, branch, and secret required", i)
 		}
 	}
-	if cfg.Build.Type == "" || cfg.Build.Path == "" {
+
+	if cfg.Build.Type == "" {
 		return fmt.Errorf("build: type and path required")
 	}
+	if cfg.Build.OutputPath == "" {
+		return fmt.Errorf("build: output_path required")
+	}
+
 	if cfg.Build.Type != "dotnet" && cfg.Build.Type != "java" {
 		return fmt.Errorf("unsupported build type: %s", cfg.Build.Type)
 	}
@@ -153,6 +160,10 @@ func validate(cfg *PipelineConfig) error {
 		default:
 			return fmt.Errorf("unsupported deploy method: %s", cfg.Deploy.Method)
 		}
+	}
+	// Validate output_path exists or can be created (optional)
+	if err := os.MkdirAll(cfg.Build.OutputPath, 0755); err != nil {
+		return fmt.Errorf("invalid output_path %s: %v", cfg.Build.OutputPath, err)
 	}
 	return nil
 }
