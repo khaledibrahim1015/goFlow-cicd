@@ -6,9 +6,10 @@ import (
 	"github.com/khaledibrahim1015/goFlow-cicd/internal/config"
 	"github.com/khaledibrahim1015/goFlow-cicd/internal/git"
 	"github.com/khaledibrahim1015/goFlow-cicd/internal/server"
+	"github.com/sirupsen/logrus"
 )
 
-func WebHookHandler(ctx *server.HttpContext) {
+func WebHookHandlerWithConfig(ctx *server.HttpContext, cfg *config.PipelineConfig) {
 	if ctx.Request.Method != "POST" {
 		ctx.JSON(server.StatusMethodNotAllowed, server.Generalesponse{
 			"error":   server.ResponseMessage["invalid_method"],
@@ -16,23 +17,17 @@ func WebHookHandler(ctx *server.HttpContext) {
 		})
 		return
 	}
-	var cfg *config.PipelineConfig
-	cfg, err := config.Load()
-	if err != nil {
-		ctx.JSON(server.StatusInternalServerError, server.Generalesponse{
-			"error":   fmt.Sprintf("Config load failed: %v", err),
-			"message": server.StatusCodeText[server.StatusInternalServerError],
-		})
-		return
-	}
+
 	provider := git.DetermineGitProvider(ctx.Request)
 	if provider == "unknown" {
 		ctx.JSON(server.StatusBadRequest, server.Generalesponse{
-			"error":   fmt.Sprintf("unsupported git provider: %v", err),
+			"error":   fmt.Sprintf("unsupported git provider :%v  ", provider),
 			"message": server.StatusCodeText[server.StatusBadRequest],
 		})
 		return
 	}
+	logrus.Infof("current provider request :%v", provider)
+
 	switch provider {
 	case git.Github:
 		git.Githubhandler(ctx, cfg)

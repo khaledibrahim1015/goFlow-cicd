@@ -3,16 +3,28 @@ package main
 import (
 	"fmt"
 
+	"github.com/khaledibrahim1015/goFlow-cicd/internal/config"
 	"github.com/khaledibrahim1015/goFlow-cicd/internal/handlers"
 	"github.com/khaledibrahim1015/goFlow-cicd/internal/server"
 	"github.com/khaledibrahim1015/goFlow-cicd/internal/status"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
 
-	// INtailize server
+	cfg, err := config.Load()
+	if err != nil {
+		logrus.Fatalf("Failed to load config: %v", err)
+	}
+
+	fmt.Println("Server listening on :8080")
+
+	prdctrl := handlers.NewProductController()
 	serv := server.NewHttpServer(":8080")
-	serv.POST("/webhook", handlers.WebHookHandler)
+	serv.GET("/", prdctrl.GetAllProducts)
+	serv.POST("/webhook", func(ctx *server.HttpContext) {
+		handlers.WebHookHandlerWithConfig(ctx, cfg)
+	})
 	serv.GET("/status", status.StatusHandler)
 
 	if err := serv.Start(); err != nil {

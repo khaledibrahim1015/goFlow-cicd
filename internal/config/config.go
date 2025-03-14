@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -67,31 +68,53 @@ type PipelineConfig struct {
 	Deploy       DeployConfig       `json:"deploy" yaml:"deploy"`
 }
 
+// func LOadV2
+// Enhance config.go to be aligns with industry standards
+
 func Load() (*PipelineConfig, error) {
 
-	// Get the project root directory (2 levels up from handlers directory)
-	currentDir, err := os.Getwd()
+	// Define Command line flag for config path
+	configPath := flag.String("config", "config.json", "path to the configuratioon file ")
+	flag.Parse()
+
+	// Check environment variable override (note local environment variable (tem env))
+	if envPath := os.Getenv("GOFLOW_CONFIG"); envPath != "" {
+		configPath = &envPath
+	}
+
+	// If configPath is absolute, use it directly
+	if filepath.IsAbs(*configPath) {
+		if _, err := os.Stat(*configPath); err == nil {
+			logrus.Infof("Loading config from %s (absolute path)", *configPath)
+			return loadFromFile(*configPath)
+		}
+		return nil, fmt.Errorf("config file not found at %s", *configPath)
+	}
+
+	execuPath, err := os.Executable()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get current directory: %v", err)
+		return nil, fmt.Errorf("failed to get executable path: %v", err)
 	}
 
-	rootDir := filepath.Join(currentDir, "..", "..")
-	fmt.Printf("Project root directory: %s\n", rootDir)
+	rootDir := filepath.Dir(execuPath)
+	logrus.Infof("Project root directory: %s", rootDir)
 
-	// Configuration file paths relative to project root
+	// Possible paths
 	possiblePathes := []string{
-		filepath.Join(rootDir, "config.json"),
-		filepath.Join(rootDir, "config", "config.json"),
-		filepath.Join(rootDir, "cmd", "cli", "config.json"),
+		filepath.Join(rootDir, *configPath),                       // e.g., /home/khaledibra/projects/config-app/config.json
+		filepath.Join(rootDir, "internal", "config", *configPath), // e.g., /home/khaledibra/projects/config-app/internal/configs/config.json
+		filepath.Join(os.Getenv("HOME"), ".app", *configPath),     // e.g., /home/khaledibra/.app/config.json
 	}
-
 	for _, path := range possiblePathes {
 		if _, err := os.Stat(path); err == nil {
 			logrus.Infof("Loading config from %s", path)
 			return loadFromFile(path)
 		}
 	}
-	return nil, fmt.Errorf("no configuration file found")
+
+	return nil, fmt.Errorf("no configuration file found in possible paths: %v", possiblePathes)
+	// Get the project root directory (2 levels up from handlers directory)
+
 }
 
 func loadFromFile(path string) (*PipelineConfig, error) {
