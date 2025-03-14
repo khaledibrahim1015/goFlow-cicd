@@ -8,21 +8,22 @@
   ],
   "build": {
     "type": "dotnet",
-    "output_path": "/tmp/artifacts",
+    "output_path": "/tmp/artifacts/build",
     "version": "8.0"
   },
-  "test": {
-    "type": "dotnet",
-    "output_path": "/tmp/artifacts",
-    "version": "8.0"
-  },
+  
   "deploy": {
     "method": "ssh",
     "ssh": {
       "remote_user": "appuser",
       "remote_host": "server.example.com",
       "remote_path": "/var/www/app",
-      "key_path": "/home/user/.ssh/id_rsa"
-    }
+      "key_path": "/home/khaledibra/.ssh/id_rsa",
+      "rsync_options": "--archive --verbose" 
+    },
+    "post_deploy_cmds": [
+      "dotnet /var/www/app/TodoApi.dll" 
+    ],
+  "rollback_script": "/home/khaledibra/learnprogs/goFlow-cicd/rollback.sh" 
   }
 }
