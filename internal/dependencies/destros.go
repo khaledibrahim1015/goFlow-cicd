@@ -12,8 +12,7 @@ import (
 type PackageManager interface {
 	Update() error
 	Install(pkg string) error
-	Name() string // For logging purposes
-
+	Name() string
 }
 
 // packageManagerDef defines a package manager to check
@@ -24,68 +23,76 @@ type packageManagerDef struct {
 
 // Available package managers
 var packageManagers = []packageManagerDef{
-	{
-		command: apt_get,
-		factory: func() PackageManager { return AptGetManager{} },
-	},
-	{
-		command: yum,
-		factory: func() PackageManager { return YumManager{} },
-	},
-	{
-		command: dnf,
-		factory: func() PackageManager { return DnfManager{} },
-	},
+	{command: aptGet, factory: func() PackageManager { return AptGetManager{} }},
+	{command: yum, factory: func() PackageManager { return YumManager{} }},
+	{command: dnf, factory: func() PackageManager { return DnfManager{} }},
 }
 
-// getPackageManager detects and returns the appropriate package manager
-func getPackageManager() (PackageManager, error) {
-	for _, pm := range packageManagers {
-		if pkgPath, err := exec.LookPath(pm.command); err == nil {
-			logrus.Infof("package manager detected: %v", pkgPath)
-			return pm.factory(), nil
-		}
-	}
-	return nil, fmt.Errorf("no supported package manager found (apt-get, yum, or dnf required)")
-}
-
-// AptGetManager impelements PackageManager for Debian/Ubuntu.
+// AptGetManager implements PackageManager for Debian/Ubuntu
 type AptGetManager struct{}
 
+func (apt AptGetManager) Name() string { return aptGet }
 func (apt AptGetManager) Update() error {
-	return executor.Run(exec.Command(sudo, apt_get, update))
+	cmd := exec.Command(sudo, aptGet, update)
+	output, err := executor.RunWithOutput(cmd)
+	if err != nil {
+		return fmt.Errorf("%s update failed: %v\nOutput: %s", aptGet, err, output)
+	}
+	logrus.Infof("Output: %s", output)
+	return nil
 }
 func (apt AptGetManager) Install(pkg string) error {
-	return executor.Run(exec.Command(sudo, apt_get, install, "-y", pkg))
-}
-func (apt AptGetManager) Name() string {
-	return "apt-get"
+	cmd := exec.Command(sudo, aptGet, install, "-y", pkg)
+	output, err := executor.RunWithOutput(cmd)
+	if err != nil {
+		return fmt.Errorf("%s install %s failed: %v\nOutput: %s", aptGet, pkg, err, output)
+	}
+	logrus.Infof("Output: %s", output)
+	return nil
 }
 
-// YumManager implements PackageManager for CentOS/RHEL (older versions).
+// YumManager implements PackageManager for CentOS 7
 type YumManager struct{}
 
+func (y YumManager) Name() string { return yum }
 func (y YumManager) Update() error {
-	return executor.Run(exec.Command(sudo, yum, makecache))
+	cmd := exec.Command(sudo, yum, update, "-y")
+	output, err := executor.RunWithOutput(cmd)
+	if err != nil {
+		return fmt.Errorf("%s update failed: %v\nOutput: %s", yum, err, output)
+	}
+	logrus.Infof("Output: %s", output)
+	return nil
 }
 func (y YumManager) Install(pkg string) error {
-	return executor.Run(exec.Command(sudo, yum, install, "-y", pkg))
-}
-func (y YumManager) Name() string {
-	return "yum"
+	cmd := exec.Command(sudo, yum, install, "-y", pkg)
+	output, err := executor.RunWithOutput(cmd)
+	if err != nil {
+		return fmt.Errorf("%s install %s failed: %v\nOutput: %s", yum, pkg, err, output)
+	}
+	logrus.Infof("Output: %s", output)
+	return nil
 }
 
-// DnfManager implements PackageManager for CentOS 8+/RHEL 8+.
+// DnfManager implements PackageManager for CentOS 8/9
 type DnfManager struct{}
 
-func (m DnfManager) Update() error {
-	return executor.Run(exec.Command(sudo, dnf, makecache))
+func (d DnfManager) Name() string { return dnf }
+func (d DnfManager) Update() error {
+	cmd := exec.Command(sudo, dnf, makecache)
+	output, err := executor.RunWithOutput(cmd)
+	if err != nil {
+		return fmt.Errorf("%s makecache failed: %v\nOutput: %s", dnf, err, output)
+	}
+	logrus.Infof("Output: %s", output)
+	return nil
 }
-
-func (m DnfManager) Install(pkg string) error {
-	return executor.Run(exec.Command(sudo, dnf, install, "-y", pkg))
-}
-
-func (m DnfManager) Name() string {
-	return "dnf"
+func (d DnfManager) Install(pkg string) error {
+	cmd := exec.Command(sudo, dnf, install, "-y", pkg)
+	output, err := executor.RunWithOutput(cmd)
+	if err != nil {
+		return fmt.Errorf("%s install %s failed: %v\nOutput: %s", dnf, pkg, err, output)
+	}
+	logrus.Infof("Output: %s", output)
+	return nil
 }

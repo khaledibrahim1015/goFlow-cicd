@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/khaledibrahim1015/goFlow-cicd/internal/config"
 	"github.com/khaledibrahim1015/goFlow-cicd/internal/dependencies"
@@ -23,6 +24,16 @@ func New(cfg *config.PipelineConfig, clonedRepoPath string) *Pipeline {
 func (p *Pipeline) Run() error {
 
 	logrus.Info("Starting pipeline...")
+
+	// ephemerial
+	defer func() {
+		if err := os.RemoveAll(p.repoPath); err != nil {
+			logrus.Warnf("Failed to clean up %s: %v", p.repoPath, err)
+		} else {
+			logrus.Debugf("Cleaned up %s", p.repoPath)
+		}
+	}()
+
 	if err := dependencies.EnsureEnvironment(p.cfg.Build.Type, p.cfg.Build.Version); err != nil {
 		return fmt.Errorf("environment setup failed: %v", err)
 	}

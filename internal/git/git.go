@@ -95,5 +95,8 @@ func sanitizedRepoName(url string) string {
 	if len(parts) < 2 {
 		return "default-repo"
 	}
-	return fmt.Sprintf("%s-%s", parts[len(parts)-2], parts[len(parts)-1])
+	// Replace special characters for safety
+	safeName := strings.ReplaceAll(fmt.Sprintf("%s-%s", parts[len(parts)-2],
+		parts[len(parts)-1]), "@", "-")
+	return strings.ReplaceAll(safeName, ":", "-")
 }

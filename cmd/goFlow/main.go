@@ -17,8 +17,6 @@ func main() {
 		logrus.Fatalf("Failed to load config: %v", err)
 	}
 
-	fmt.Println("Server listening on :8080")
-
 	prdctrl := handlers.NewProductController()
 	serv := server.NewHttpServer(":8080")
 	serv.GET("/", prdctrl.GetAllProducts)

@@ -17,45 +17,104 @@ const (
 )
 
 func (p *Pipeline) build() error {
+	logrus.Info("Building project with Docker-like behavior...")
 
-	logrus.Info("building ..................")
+	// Define a fixed output directory for .NET (mimics Docker's /app/build or /app/publish)
+	buildOutputDir := filepath.Join(p.repoPath, "build-output")
+	if p.cfg.Build.Type == dotnet {
+		if err := os.MkdirAll(buildOutputDir, 0755); err != nil {
+			return fmt.Errorf("failed to create build output directory %s: %v", buildOutputDir, err)
+		}
+	}
 
-	// Stage 1: Build the project
 	var buildFile string
-
+	var restoreCmdFunc, buildCmdFunc func() *exec.Cmd
 	switch p.cfg.Build.Type {
 	case dotnet:
 		var err error
-		buildFile, err = findBuildFile(p.repoPath, "dotnet")
+		buildFile, err = findBuildFile(p.repoPath, dotnet)
 		if err != nil {
 			return fmt.Errorf("failed to locate .NET project file: %v", err)
 		}
-		cmd := exec.Command("dotnet", "build", buildFile)
-		if err := executor.Run(cmd); err != nil {
-			return fmt.Errorf("dotnet build failed: %v", err)
+		restoreCmdFunc = func() *exec.Cmd {
+			cmd := exec.Command("dotnet", "restore", buildFile)
+			cmd.Env = os.Environ()
+			cmd.Dir = p.repoPath
+			return cmd
+		}
+		// Mimic Docker's dotnet publish -o
+		buildCmdFunc = func() *exec.Cmd {
+			cmd := exec.Command("dotnet", "publish", buildFile, "-c", "Release", "-o", buildOutputDir, "/p:UseAppHost=false")
+			cmd.Env = os.Environ()
+			cmd.Dir = p.repoPath
+			return cmd
 		}
 	case java:
 		var err error
-		buildFile, err = findBuildFile(p.repoPath, "java")
+		buildFile, err = findBuildFile(p.repoPath, java)
 		if err != nil {
 			return fmt.Errorf("failed to locate pom.xml: %v", err)
 		}
-		cmd := exec.Command("mvn", "clean", "install", "-f", buildFile)
-		if err := executor.Run(cmd); err != nil {
-			return fmt.Errorf("mvn build failed: %v", err)
+		// Mimic Docker's mvn clean package
+		buildCmdFunc = func() *exec.Cmd {
+			cmd := exec.Command("mvn", "clean", "package", "-f", buildFile)
+			cmd.Env = os.Environ()
+			cmd.Dir = p.repoPath
+			return cmd
 		}
 	default:
 		logrus.Warnf("Unknown build type '%s', skipping build step", p.cfg.Build.Type)
 		return nil
 	}
-	// Stage 2: Move artifacts to output_path
-	if err := moveArtifacts(p.cfg.Build.Type, p.repoPath, p.cfg.Build.OutputPath); err != nil {
+
+	// Restore for dotnet only
+	if p.cfg.Build.Type == dotnet {
+		for attempt := 1; attempt <= 3; attempt++ {
+			cmd := restoreCmdFunc()
+			output, err := executor.RunWithOutput(cmd)
+			if err == nil {
+				logrus.Infof("Restore output: %s", output)
+				break
+			}
+			logrus.Errorf("Restore failed (attempt %d/3): %v\nOutput: %s", attempt, err, output)
+			if attempt == 3 {
+				return fmt.Errorf("dotnet restore failed after 3 attempts: %v", err)
+			}
+		}
+	}
+
+	// Build (or publish for dotnet)
+	for attempt := 1; attempt <= 3; attempt++ {
+		cmd := buildCmdFunc()
+		output, err := executor.RunWithOutput(cmd)
+		if err == nil {
+			logrus.Infof("Build output: %s", output)
+			break
+		}
+		logrus.Errorf("Build failed (attempt %d/3): %v\nOutput: %s", attempt, err, output)
+		if attempt == 3 {
+			return fmt.Errorf("%s build failed after 3 attempts: %v", p.cfg.Build.Type, err)
+		}
+	}
+
+	// Ensure output path exists
+	if err := os.MkdirAll(p.cfg.Build.OutputPath, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory %s: %v", p.cfg.Build.OutputPath, err)
+	}
+
+	// Move artifacts
+	var srcDir string
+	if p.cfg.Build.Type == dotnet {
+		srcDir = buildOutputDir
+	} else if p.cfg.Build.Type == java {
+		srcDir = filepath.Join(filepath.Dir(buildFile), "target")
+	}
+	if err := moveArtifacts(srcDir, p.cfg.Build.OutputPath); err != nil {
 		return fmt.Errorf("failed to move build artifacts: %v", err)
 	}
 
 	logrus.Info("Build completed successfully")
 	return nil
-
 }
 
 // findBuildFile locates the build file for the given build type
@@ -63,9 +122,9 @@ func findBuildFile(dir, buildType string) (string, error) {
 	var targetExtensions []string
 	switch buildType {
 	case dotnet:
-		targetExtensions = []string{".csproj", ".sln"}
+		targetExtensions = []string{".csproj"} // Only look for .csproj
 	case java:
-		targetExtensions = []string{".xml"} // For pom.xml
+		targetExtensions = []string{".xml"}
 	default:
 		return "", fmt.Errorf("unsupported build type: %s", buildType)
 	}
@@ -75,7 +134,7 @@ func findBuildFile(dir, buildType string) (string, error) {
 			return nil
 		}
 		name := info.Name()
-		if buildType == "java" && name == "pom.xml" {
+		if buildType == java && name == "pom.xml" {
 			buildFile = path
 			return filepath.SkipDir
 		}
@@ -95,11 +154,8 @@ func findBuildFile(dir, buildType string) (string, error) {
 	}
 	logrus.Infof("Found build file: %s", buildFile)
 	return buildFile, nil
-
 }
-
 func walkDir(dir string, fn func(path string, info os.DirEntry) error) error {
-
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err
@@ -122,35 +178,49 @@ func walkDir(dir string, fn func(path string, info os.DirEntry) error) error {
 }
 
 // moveArtifacts copies build outputs to the specified output path
-func moveArtifacts(buildType, repoPath, outputPath string) error {
-	var srcDir string
-	switch buildType {
-	case "dotnet":
-		// .NET typically outputs to bin/ in the project directory
-		buildFile, err := findBuildFile(repoPath, "dotnet")
-		if err != nil {
-			return err
-		}
-		srcDir = filepath.Join(filepath.Dir(buildFile), "bin")
-	case "java":
-		// Maven outputs to target/ in the directory containing pom.xml
-		pomFile, err := findBuildFile(repoPath, "java")
-		if err != nil {
-			return err
-		}
-		srcDir = filepath.Join(filepath.Dir(pomFile), "target")
-	default:
-		return fmt.Errorf("unsupported build type for moving artifacts: %s", buildType)
-	}
-
+func moveArtifacts(srcDir, outputPath string) error {
+	// Check if source directory exists
 	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
 		return fmt.Errorf("build output directory %s not found", srcDir)
 	}
-	// Copy all contents of srcDir to outputPath
-	cmd := exec.Command("cp", "-r", filepath.Join(srcDir, "*"), outputPath)
-	if err := executor.Run(cmd); err != nil {
-		return fmt.Errorf("failed to move artifacts from %s to %s: %v", srcDir, outputPath, err)
+
+	// Log contents of srcDir for debugging
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		return fmt.Errorf("failed to read build output directory %s: %v", srcDir, err)
 	}
-	logrus.Infof("Moved artifacts from %s to %s", srcDir, outputPath)
+	if len(entries) == 0 {
+		return fmt.Errorf("build output directory %s is empty", srcDir)
+	}
+	logrus.Infof("Found %d files in %s:", len(entries), srcDir)
+	for _, entry := range entries {
+		logrus.Infof(" - %s", entry.Name())
+	}
+
+	// Ensure output directory exists
+	if err := os.MkdirAll(outputPath, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory %s: %v", outputPath, err)
+	}
+
+	// Use absolute paths
+	absSrcDir, err := filepath.Abs(srcDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve absolute path for %s: %v", srcDir, err)
+	}
+	absOutputPath, err := filepath.Abs(outputPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve absolute path for %s: %v", outputPath, err)
+	}
+
+	// Run cp through a shell to handle glob expansion
+	cmdStr := fmt.Sprintf("cp -r %s/* %s", absSrcDir, absOutputPath)
+	cmd := exec.Command("bash", "-c", cmdStr)
+	cmd.Env = os.Environ()
+	output, err := executor.RunWithOutput(cmd)
+	if err != nil {
+		logrus.Errorf("Command failed: %s", cmdStr)
+		return fmt.Errorf("failed to move artifacts from %s to %s: %v\nOutput: %s", absSrcDir, absOutputPath, err, output)
+	}
+	logrus.Infof("Moved artifacts from %s to %s: %s", absSrcDir, absOutputPath, output)
 	return nil
 }

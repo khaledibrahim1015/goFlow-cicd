@@ -1,7 +1,7 @@
 {
   "repositories": [
     {
-      "url": "https://github.com/khaledibrahim1015/goflowdotnet",
+      "url": "git@github.com:khaledibrahim1015/goflowdotnet.git",
       "branch": "main",
       "secret": "supersecret1"
     }

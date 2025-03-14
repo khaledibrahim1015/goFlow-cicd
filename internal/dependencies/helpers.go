@@ -13,7 +13,7 @@ const (
 	sudo        = "sudo"
 	update      = "update"
 	install     = "install"
-	apt_get     = "apt-get"
+	aptGet      = "apt-get"
 	yum         = "yum"
 	makecache   = "makecache"
 	dnf         = "dnf"
@@ -23,6 +23,7 @@ const (
 	DOTNET_ROOT = "DOTNET_ROOT"
 )
 
+// Utility Functions
 func contains(slice []string, version string) bool {
 	for _, val := range slice {
 		if val == version {
@@ -30,7 +31,6 @@ func contains(slice []string, version string) bool {
 		}
 	}
 	return false
-
 }
 
 func getToolVersion(tool, versionFlag string) (string, error) {
@@ -41,12 +41,13 @@ func getToolVersion(tool, versionFlag string) (string, error) {
 	}
 	return strings.TrimSpace(string(output)), nil
 }
+
 func findDotNetRoot(pmName string) (string, error) {
 	var path string
 	switch pmName {
-	case "apt-get":
-		path = "/usr/share/dotnet"
-	case "yum", "dnf":
+	case aptGet:
+		path = "/usr/lib/dotnet"
+	case yum, dnf:
 		path = "/usr/lib64/dotnet"
 	}
 	if _, err := os.Stat(path); err == nil {
@@ -74,6 +75,7 @@ func exportEnvVar(key, value string) error {
 	}
 	return nil
 }
+
 func appendToPath(newPath string) error {
 	currentPath := os.Getenv("PATH")
 	if strings.Contains(currentPath, newPath) {
@@ -98,9 +100,9 @@ func VerifyTool(tool string) error {
 func findJavaHome(pmName, version string) (string, error) {
 	var path string
 	switch pmName {
-	case "apt-get":
+	case aptGet:
 		path = fmt.Sprintf("/usr/lib/jvm/java-%s-openjdk-amd64", version)
-	case "yum", "dnf":
+	case yum, dnf:
 		path = fmt.Sprintf("/usr/lib/jvm/java-%s-openjdk", version)
 	}
 	if _, err := os.Stat(path); err == nil {
@@ -111,11 +113,22 @@ func findJavaHome(pmName, version string) (string, error) {
 
 func getJavaPackageName(pmName, version string) string {
 	switch pmName {
-	case "apt-get":
+	case aptGet:
 		return fmt.Sprintf("openjdk-%s-jdk", version)
-	case "yum", "dnf":
+	case yum, dnf:
 		return fmt.Sprintf("java-%s-openjdk-devel", version)
 	default:
-		return "" // Shouldn't happen due to getPackageManager
+		return ""
 	}
+}
+
+// detects and returns the appropriate package manager
+func getPackageManager() (PackageManager, error) {
+	for _, pm := range packageManagers {
+		if pkgPath, err := exec.LookPath(pm.command); err == nil {
+			logrus.Infof("package manager detected: %v", pkgPath)
+			return pm.factory(), nil
+		}
+	}
+	return nil, fmt.Errorf("no supported package manager found (apt-get, yum, or dnf required)")
 }
