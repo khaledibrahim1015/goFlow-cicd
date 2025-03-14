@@ -45,10 +45,11 @@ type DeployConfig struct {
 
 // SSHConfig for ssh deployment
 type SSHConfig struct {
-	RemoteUser string `json:"remote_user" yaml:"remote_user"`
-	RemoteHost string `json:"remote_host" yaml:"remote_host"`
-	RemotePath string `json:"remote_path" yaml:"remote_path"`
-	KeyPath    string `json:"key_path" yaml:"key_path"`
+	RemoteUser   string `json:"remote_user" yaml:"remote_user"`
+	RemoteHost   string `json:"remote_host" yaml:"remote_host"`
+	RemotePath   string `json:"remote_path" yaml:"remote_path"`
+	KeyPath      string `json:"key_path" yaml:"key_path"`
+	RsyncOptions string `json:"rsync_options,omitempty"` // Add rsync options field
 }
 
 // DockerConfig for Docker deployments
@@ -166,7 +167,7 @@ func validate(cfg *PipelineConfig) error {
 	if cfg.Build.Type != "dotnet" && cfg.Build.Type != "java" {
 		return fmt.Errorf("unsupported build type: %s", cfg.Build.Type)
 	}
-	if cfg.Test.Type != "" && cfg.Test.Type != "dotnet" && cfg.Test.Type != "java" {
+	if cfg.Test.Type != "dotnet" && cfg.Test.Type != "java" {
 		return fmt.Errorf("unsupported test type: %s", cfg.Test.Type)
 	}
 	if cfg.Deploy.Method != "" {

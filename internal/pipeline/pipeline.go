@@ -43,30 +43,12 @@ func (p *Pipeline) Run() error {
 	if err := p.build(); err != nil {
 		return fmt.Errorf("build failed: %v", err)
 	}
-	// if err := p.test(); err != nil {
-	// 	return fmt.Errorf("test failed:%v", err)
-	// }
-	// if err := p.deploy(); err != nil {
-	// 	// here impelement scripts
-	// 	return err
-	// }
+	if err := p.test(); err != nil {
+		return fmt.Errorf("test failed:%v", err)
+	}
+	if err := p.deploy(); err != nil {
+		return fmt.Errorf("deploy failed:%v", err)
+	}
 	logrus.Info("Pipeline completed successfully")
 	return nil
 }
-
-//     if err := p.deploy(); err != nil {
-//         if p.cfg.Deploy.RollbackScript != "" {
-//             logrus.Warn("Deployment failed, attempting rollback...")
-//             cmd := exec.Command("sh", "-c", p.cfg.Deploy.RollbackScript)
-//             if err := executor.Run(cmd); err != nil {
-//                 logrus.Errorf("Rollback failed: %v", err)
-//             } else {
-//                 logrus.Info("Rollback successful")
-//             }
-//         }
-//         return fmt.Errorf("deploy failed: %v", err)
-//     }
-
-//     logrus.Info("Pipeline completed successfully")
-//     return nil
-// }
